@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# build arm-none-eabi gcc toolchain
+# for the raspberry pi
+#
+
+VG="4.9.0"
+VB="2.24"
+JN="-j 6"
+
+export TARGET="arm-none-eabi"
+export PREFIX="$HOME/opt/gnuarm"
+export PATH="$PREFIX/bin:$PATH"
+
+./clean
+
+mkdir -p build-binutils build-gcc "$PREFIX" >/dev/null 2>&1
+
+# build binutils
+cd build-binutils
+curl http://ftp.gnu.org/gnu/binutils/binutils-${VB}.tar.gz |tar xz
+binutils-${VB}/configure --target="$TARGET" \
+                         --prefix="$PREFIX" \
+                         --enable-interwork \
+                         --disable-nls \
+                         --disable-werror
+
+make ${JN} && \
+make install
+
+[ "$?" -ne "0" ] && exit 1
+
+# build gcc
+cd ../build-gcc
+curl http://ftp.gnu.org/gnu/gcc/gcc-${VG}/gcc-${VG}.tar.gz |tar xz
+gcc-${VG}/configure --target="$TARGET" \
+                    --prefix="$PREFIX" \
+                    --without-headers \
+                    --with-newlib \
+                    --enable-interwork \
+                    --enable-languages='c' \
+                    --disable-nls
+
+make ${JN} all-gcc && \
+make install-gcc && \
+make ${JN} all-target-libgcc CFLAGS_FOR_TARGET="-g -O2" && \
+make install-target-libgcc
+
